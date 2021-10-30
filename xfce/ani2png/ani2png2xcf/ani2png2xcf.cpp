@@ -29,13 +29,6 @@ const auto usageInfo = "$ ani2png FILE.ani [PNG_FILE_OUTPUT_DIR] [PNG_FILE_PREFI
 std::shared_ptr<std::vector<uint8_t>> readBinaryFile(const std::filesystem::path& filePath);
 void writeBinaryFile(const std::filesystem::path& filePath, const std::shared_ptr<std::vector<uint8_t>>& data);
 
-void parseRiffFile(const std::shared_ptr<std::vector<uint8_t>>& data);
-
-bool teststring(const std::shared_ptr<std::vector<uint8_t>>& data, const int start)
-{
-    return data->at(start) == 0x69 && data->at(start + 1) == 0x63 && data->at(start + 2) == 0x6f && data->at(start + 3) == 0x6e;
-}
-
 struct AniFileHeader {
     uint32_t cbSizeOf; // Num bytes in AniHeader (36 bytes)
     uint32_t cFrames; // Number of unique Icons in this cursor
@@ -54,6 +47,9 @@ struct AniFileInformation {
 };
 
 AniFileInformation parseAniFileData(const std::shared_ptr<std::vector<uint8_t>>& data);
+
+void printIcoDataHeader(const std::shared_ptr<std::vector<uint8_t>>& data);
+
 
 int main(int argc, char **argv)
 {
@@ -79,6 +75,7 @@ int main(int argc, char **argv)
     const auto aniFileInformation = parseAniFileData(dataBytes);
 
     for (std::size_t iconCounter = 0; iconCounter < aniFileInformation.icons.size(); iconCounter++) {
+        printIcoDataHeader(aniFileInformation.icons.at(iconCounter));
         writeBinaryFile(aniFileName + "_" + std::to_string(iconCounter) + ".ico", aniFileInformation.icons.at(iconCounter));
     }
     writeBinaryFile(aniFileName + ".ani", dataBytes);
@@ -140,7 +137,15 @@ uint32_t parseDwordToUnsignedInt(const std::shared_ptr<std::vector<uint8_t>>& da
     uint32_t dwordValue;
     uint8_t bytes[4]{ data->at(start), data->at(start +1), data->at(start + 2), data->at(start + 3) };
     std::memcpy(&dwordValue, bytes, sizeof(uint32_t));
-    return static_cast<unsigned int>(dwordValue);
+    return dwordValue;
+}
+
+int16_t parseWordToUnsignedInt(const std::shared_ptr<std::vector<uint8_t>>& data, const size_t start)
+{
+    int16_t wordValue;
+    uint8_t bytes[2]{ data->at(start), data->at(start +1) };
+    std::memcpy(&wordValue, bytes, sizeof(int16_t));
+    return wordValue;
 }
 
 std::string parseCharToString(const std::shared_ptr<std::vector<uint8_t>>& data, const std::size_t start, const uint32_t length)
@@ -337,4 +342,47 @@ AniFileInformation parseAniFileData(const std::shared_ptr<std::vector<uint8_t>>&
     return aniFileInformation;
 }
 
+/**
+ * Source: https://en.wikipedia.org/wiki/ICO_(file_format)
+ *
+ * All values in ICO/CUR files are represented in little-endian byte order.
+ *
+ * Header
+ * -------
+ * ICONDIR structure:
+ *
+ * | Offset# | Size | Purpose
+ * | 0       | 2    | Reserved. Must always be 0.
+ * | 2       | 2    | Specifies image type: 1 for icon (.ICO) image, 2 for cursor (.CUR) image. Other values are invalid.
+ * | 4       | 2    | Specifies number of images in the file.
+ *
+ * Structure of image directory:
+ *
+ * Image #1 	Entry for the first image
+ * Image #2 	Entry for the second image
+ * ...
+ * Image #n 	Entry for the last image
+ *
+ * ICONDIRENTRY structure:
+ *
+ * | Offset# | Size | Purpose
+ * | 0       | 1    | Specifies image width in pixels. Can be any number between 0 and 255. Value 0 means image width is 256 pixels.
+ * | 1       | 1    | Specifies image height in pixels. Can be any number between 0 and 255. Value 0 means image height is 256 pixels.
+ * | 2       | 1    | Specifies number of colors in the color palette. Should be 0 if the image does not use a color palette.
+ * | 3       | 1    | Reserved. Should be 0.[Notes 2]
+ * | 4       | 2    | In ICO format: Specifies color planes. Should be 0 or 1.[Notes 3] In CUR format: Specifies the horizontal coordinates of the hotspot in number of pixels from the left.
+ * | 6       | 2    | In ICO format: Specifies bits per pixel. [Notes 4] In CUR format: Specifies the vertical coordinates of the hotspot in number of pixels from the top.
+ * | 8       | 4    | Specifies the size of the image's data in bytes
+ * | 12      | 4    | Specifies the offset of BMP or PNG data from the beginning of the ICO/CUR file
+
+ * @brief printIcoDataHeader
+ * @param data
+ */
+void printIcoDataHeader(const std::shared_ptr<std::vector<uint8_t>>& data)
+{
+    std::cout << "Position | Size | Purpose    | Content" << std::endl;
+    std::cout << "0        | 2    | reserved   | '" << parseWordToUnsignedInt(data, 0) << "'" << std::endl;
+    std::cout << "2        | 2    | image type | '" << parseWordToUnsignedInt(data, 1) << "'" << std::endl;
+    std::cout << "4        | 2    | image #    | '" << parseWordToUnsignedInt(data, 2) << "'" << std::endl;
+}
 

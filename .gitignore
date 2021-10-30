@@ -2,3 +2,8 @@ converted_icons_*
 *_NOT_PRODUCTION_READY
 .vscode/settings.json
 xfce/ani2png/ani2png2xcf/CMakeLists.txt.user
+build*
+original_icons*/*.txt
+original_icons*/*.ico
+original_icons*/*.ani.ani
+
