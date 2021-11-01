@@ -28,6 +28,7 @@ const auto usageInfo = "$ ani2png FILE.ani [PNG_FILE_OUTPUT_DIR] [PNG_FILE_PREFI
  */
 std::shared_ptr<std::vector<uint8_t>> readBinaryFile(const std::filesystem::path& filePath);
 void writeBinaryFile(const std::filesystem::path& filePath, const std::shared_ptr<std::vector<uint8_t>>& data);
+std::shared_ptr<std::vector<uint8_t>> convertCurImageData2Png(const std::shared_ptr<std::vector<uint8_t>>& data);
 
 struct AniFileHeader {
     uint32_t cbSizeOf; // Num bytes in AniHeader (36 bytes)
@@ -49,7 +50,7 @@ struct AniFileInformation {
 AniFileInformation parseAniFileData(const std::shared_ptr<std::vector<uint8_t>>& data);
 
 void printIcoDataHeader(const std::shared_ptr<std::vector<uint8_t>>& data);
-
+void printPngDataHeader(const std::shared_ptr<std::vector<uint8_t>>& data, const std::size_t start);
 
 int main(int argc, char **argv)
 {
@@ -77,6 +78,8 @@ int main(int argc, char **argv)
     for (std::size_t iconCounter = 0; iconCounter < aniFileInformation.icons.size(); iconCounter++) {
         printIcoDataHeader(aniFileInformation.icons.at(iconCounter));
         writeBinaryFile(aniFileName + "_" + std::to_string(iconCounter) + ".ico", aniFileInformation.icons.at(iconCounter));
+        const auto pngDataNew = convertCurImageData2Png(aniFileInformation.icons.at(iconCounter));
+        writeBinaryFile(aniFileName + "_" + std::to_string(iconCounter) + "_test.png", pngDataNew);
     }
     writeBinaryFile(aniFileName + ".ani", dataBytes);
     return 0;
@@ -135,16 +138,16 @@ void writeBinaryFile(const std::filesystem::path& filePath, const std::shared_pt
 uint32_t parseDwordToUnsignedInt(const std::shared_ptr<std::vector<uint8_t>>& data, const size_t start)
 {
     uint32_t dwordValue;
-    uint8_t bytes[4]{ data->at(start), data->at(start +1), data->at(start + 2), data->at(start + 3) };
+    uint8_t bytes[4]{ data->at(start), data->at(start + 1), data->at(start + 2), data->at(start + 3) };
     std::memcpy(&dwordValue, bytes, sizeof(uint32_t));
     return dwordValue;
 }
 
-int16_t parseWordToUnsignedInt(const std::shared_ptr<std::vector<uint8_t>>& data, const size_t start)
+uint16_t parseWordToUnsignedInt(const std::shared_ptr<std::vector<uint8_t>>& data, const size_t start)
 {
-    int16_t wordValue;
-    uint8_t bytes[2]{ data->at(start), data->at(start +1) };
-    std::memcpy(&wordValue, bytes, sizeof(int16_t));
+    uint16_t wordValue;
+    uint8_t bytes[2]{ data->at(start), data->at(start + 1) };
+    std::memcpy(&wordValue, bytes, sizeof(uint16_t));
     return wordValue;
 }
 
@@ -342,28 +345,125 @@ AniFileInformation parseAniFileData(const std::shared_ptr<std::vector<uint8_t>>&
     return aniFileInformation;
 }
 
+std::shared_ptr<std::vector<uint8_t>> convertCurImageData2Png(const std::shared_ptr<std::vector<uint8_t>>& data)
+{
+    auto pngData = std::make_shared<std::vector<uint8_t>>(8 + data->size());
+    pngData->reserve(8 + data->size());
+    pngData->at(0) = 137;
+    pngData->at(1) = 80;
+    pngData->at(2) = 78;
+    pngData->at(3) = 71;
+    pngData->at(4) = 13;
+    pngData->at(5) = 10;
+    pngData->at(6) = 26;
+    pngData->at(7) = 10;
+    for (std::size_t i = 0; i < data->size(); i++) {
+        pngData->at(8 + i) = data->at(i);
+    }
+    return pngData;
+}
+
 /**
- * Source: https://en.wikipedia.org/wiki/ICO_(file_format)
+ * https://stackoverflow.com/a/13001420
+ */
+inline void endian_swap(unsigned int& x)
+{
+    x = (x>>24) |
+        ((x<<8) & 0x00FF0000) |
+        ((x>>8) & 0x0000FF00) |
+        (x<<24);
+}
+
+/**
+ * Sources:
+ * - https://docs.fileformat.com/image/png/
  *
- * All values in ICO/CUR files are represented in little-endian byte order.
+ * The first eight bytes of a PNG file always contain the following (decimal) values: {{{ 137 80 78 71 13 10 26 10 }}}
+ * Then a list of chunks is following where each chunk:
+ *   > {4 Bytes=BigEndianUnsignedInt=chunkLength} (Number of byte data of chunk)
+ *   > {4 Bytes=4 ASCII chars=chunkType}
+ *   > {chunkLength Bytes=chunkData}
+ *   > {4 Bytes=crc}
+ */
+void printPngDataHeader(const std::shared_ptr<std::vector<uint8_t>>& data, std::size_t start) {
+    while (start + 8 < data->size() && !(data->at(start) == 137 && data->at(start + 1) == 80 && data->at(start + 2) == 78 && data->at(start + 3) == 71 && data->at(start + 4) == 13 && data->at(start + 5) == 10 && data->at(start + 6) == 26 && data->at(start + 7) == 10)) {
+        start += 1;
+    }
+    if (start + 8 >= data->size()) {
+        std::cout << "> No png header found" << std::endl;
+        return;
+    }
+    std::cout <<             "Position | Size | Purpose     | Content [png data header]" << std::endl;
+    std::cout << start + 0  << "       | 1    | 137         | '" << static_cast<int>(data->at(start + 0)) << "'" << std::endl;
+    std::cout << start + 1  << "       | 1    | 80          | '" << static_cast<int>(data->at(start + 1)) << "'" << std::endl;
+    std::cout << start + 2  << "       | 1    | 78          | '" << static_cast<int>(data->at(start + 2)) << "'" << std::endl;
+    std::cout << start + 3  << "       | 1    | 71          | '" << static_cast<int>(data->at(start + 3)) << "'" << std::endl;
+    std::cout << start + 4  << "       | 1    | 13          | '" << static_cast<int>(data->at(start + 4)) << "'" << std::endl;
+    std::cout << start + 5  << "       | 1    | 10          | '" << static_cast<int>(data->at(start + 5)) << "'" << std::endl;
+    std::cout << start + 6  << "       | 1    | 26          | '" << static_cast<int>(data->at(start + 6)) << "'" << std::endl;
+    std::cout << start + 7  << "       | 1    | 10          | '" << static_cast<int>(data->at(start + 7)) << "'" << std::endl;
+    for (std::size_t i = start + 8; i < data->size(); i++) {
+        if (i + 8 < data->size()) {
+            auto chunkSize = static_cast<unsigned int>(parseDwordToUnsignedInt(data, i));
+            endian_swap(chunkSize);
+            const auto chunkDataType = parseCharToString(data, i + 4, 4);
+            std::cout << i  <<     "       | 4    | chunk size  | '" << chunkSize << "'" << std::endl;
+            i += 4;
+            std::cout << i  <<     "       | 4    | chunk type  | '" << chunkDataType << "'" << std::endl;
+            i += 4;
+            i += chunkSize;
+            if (i + 4 < data->size()) {
+                std::cout << i  <<     "       | 4    | crc         | '" << static_cast<int>(data->at(i)) << " " << static_cast<int>(data->at(i + 1)) << " " << static_cast<int>(data->at(i + 2)) << " " << static_cast<int>(data->at(i + 3)) << "'" << std::endl;
+                i += 4;
+            } else if (chunkDataType != "IEND") {
+                std::cout << "crc value missing since the data is too short" << std::endl;
+            }
+            // +4 because of the crc value
+            i -= 1;
+        }
+    }
+}
+
+void printIcoDirectoryHeader(const std::shared_ptr<std::vector<uint8_t>>& data, const std::size_t start, const int directoryNumber)
+{
+    std::cout <<             "Position | Size | Purpose     | Content [ico directory header #" << directoryNumber << "]" << std::endl;
+    std::cout << start + 0  << "       | 1    | width       | '" << static_cast<int>(data->at(start + 0)) << "'" << std::endl;
+    std::cout << start + 1  << "       | 1    | height      | '" << static_cast<int>(data->at(start + 1)) << "'" << std::endl;
+    std::cout << start + 2  << "       | 1    | colorCount  | '" << static_cast<int>(data->at(start + 2)) << "'" << std::endl;
+    std::cout << start + 3  << "       | 1    | reserved    | '" << static_cast<int>(data->at(start + 3)) << "'" << std::endl;
+    std::cout << start + 4  << "       | 2    | planes      | '" << parseWordToUnsignedInt(data, start + 4) << "'" << std::endl;
+    std::cout << start + 6  << "       | 2    | bitCount    | '" << parseWordToUnsignedInt(data, start + 6) << "'" << std::endl;
+    std::cout << start + 8  << "       | 4    | bytesInRes  | '" << parseDwordToUnsignedInt(data, start + 8) << "'" << std::endl;
+    const auto imageOffset = parseWordToUnsignedInt(data, start + 12);
+    std::cout << start + 12 << "       | 4    | imageOffset | '" << imageOffset << "'" << std::endl;
+    printPngDataHeader(data, imageOffset);
+    printPngDataHeader(data, imageOffset + 8);
+    printPngDataHeader(data, imageOffset + 16);
+}
+
+/**
+ * Sources:
+ * - https://en.wikipedia.org/wiki/ICO_(file_format)
+ * - https://docs.fileformat.com/image/ico/
  *
- * Header
- * -------
- * ICONDIR structure:
+ * All values in ICO/CUR files are represented in little-endian byte order (default in programming).
+ *
+ * File structure:
+ *
+ * 1. Icon Header:     Stores general information about the ICO file.
+ * 2. Directory[1..n]: Stores general information about every image in the file.
+ * 3. Icon[1..n]:      The actual data for the image sin old AND/XOR DIB format or newer PNG format.
+ *
+ * Icon Header
+ * -------------
  *
  * | Offset# | Size | Purpose
  * | 0       | 2    | Reserved. Must always be 0.
  * | 2       | 2    | Specifies image type: 1 for icon (.ICO) image, 2 for cursor (.CUR) image. Other values are invalid.
  * | 4       | 2    | Specifies number of images in the file.
  *
- * Structure of image directory:
- *
- * Image #1 	Entry for the first image
- * Image #2 	Entry for the second image
- * ...
- * Image #n 	Entry for the last image
- *
- * ICONDIRENTRY structure:
+ * Directory
+ * -------------
  *
  * | Offset# | Size | Purpose
  * | 0       | 1    | Specifies image width in pixels. Can be any number between 0 and 255. Value 0 means image width is 256 pixels.
@@ -380,9 +480,14 @@ AniFileInformation parseAniFileData(const std::shared_ptr<std::vector<uint8_t>>&
  */
 void printIcoDataHeader(const std::shared_ptr<std::vector<uint8_t>>& data)
 {
-    std::cout << "Position | Size | Purpose    | Content" << std::endl;
-    std::cout << "0        | 2    | reserved   | '" << parseWordToUnsignedInt(data, 0) << "'" << std::endl;
-    std::cout << "2        | 2    | image type | '" << parseWordToUnsignedInt(data, 1) << "'" << std::endl;
-    std::cout << "4        | 2    | image #    | '" << parseWordToUnsignedInt(data, 2) << "'" << std::endl;
+    // The default header
+    std::cout << "Position | Size | Purpose     | Content [ico file header]" << std::endl;
+    std::cout << "0        | 2    | reserved    | '" << parseWordToUnsignedInt(data, 0) << "'" << std::endl;
+    std::cout << "2        | 2    | image type  | '" << parseWordToUnsignedInt(data, 2) << "'" << std::endl;
+    const auto imageCount = parseWordToUnsignedInt(data, 4);
+    std::cout << "4        | 2    | image #     | '" << imageCount << "'" << std::endl;
+    // The directory headers
+    for (int i = 0; i < imageCount; i++) {
+        printIcoDirectoryHeader(data, 6 + (i * 16), i);
+    }
 }
-
