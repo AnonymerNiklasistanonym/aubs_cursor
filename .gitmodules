@@ -1,0 +1,3 @@
+[submodule "xfce/aniFileExtractor"]
+	path = xfce/aniFileExtractor
+	url = https://github.com/AnonymerNiklasistanonym/aniFileExtractor.git
