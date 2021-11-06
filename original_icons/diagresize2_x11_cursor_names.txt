@@ -1,0 +1,8 @@
+bottom_left_corner
+ll_angle
+ne-resize
+nesw-resize
+size_bdiag
+sw-resize
+top_right_corner
+ur_angle

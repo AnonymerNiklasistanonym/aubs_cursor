@@ -1,3 +1,4 @@
-default
-pointer
 arrow
+default
+left_ptr
+pointer

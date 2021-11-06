@@ -1,0 +1,7 @@
+bottom_side
+n-resize
+s-resize
+sb_v_double_arrow
+size_ver
+top_side
+v_double_arrow

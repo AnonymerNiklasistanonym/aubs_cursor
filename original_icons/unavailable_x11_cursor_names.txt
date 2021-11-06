@@ -1,0 +1,6 @@
+circle
+crossed_circle
+dnd-no-drop
+forbidden
+no-drop
+not-allowed

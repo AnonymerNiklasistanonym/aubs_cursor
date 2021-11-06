@@ -1,0 +1,8 @@
+e-resize
+h_double_arrow
+left_side
+right_side
+sb_h_double_arrow
+sb_h_double_arrow
+size_hor
+w-resize

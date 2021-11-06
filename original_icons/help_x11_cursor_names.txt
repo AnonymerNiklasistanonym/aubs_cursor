@@ -1,0 +1,4 @@
+help
+left_ptr_help
+question_arrow
+whats_this

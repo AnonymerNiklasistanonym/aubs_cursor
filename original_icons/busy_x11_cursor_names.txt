@@ -1,2 +1,5 @@
+half-busy
+left_ptr_watch
 progress
 wait
+watch

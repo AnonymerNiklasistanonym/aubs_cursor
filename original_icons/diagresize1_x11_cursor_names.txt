@@ -1,0 +1,8 @@
+bottom_right_corner
+lr_angle
+nw-resize
+nwse-resize
+se-resize
+size_fdiag
+top_left_corner
+ul_angle
