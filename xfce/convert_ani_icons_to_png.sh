@@ -7,8 +7,10 @@ cmake --build build_cmake
 # Set input and output paths
 ORIGINAL_CURSOR_IMAGES_ANI_DIR="../original_icons"
 CONVERTED_CURSOR_IMAGES_PNG_DIR="../converted_png_icons"
+CONVERTED_X11_CURSORS_DIR="../converted_x11_cursors"
 
 mkdir -p "$CONVERTED_CURSOR_IMAGES_PNG_DIR"
+mkdir -p "$CONVERTED_X11_CURSORS_DIR"
 for CURSOR_FILE_PATH in "$ORIGINAL_CURSOR_IMAGES_ANI_DIR/"*.ani; do
     CURSOR_NAME=`basename "$CURSOR_FILE_PATH" .ani`
     ./build_cmake/aniFileExtractor "$CURSOR_FILE_PATH" "$CONVERTED_CURSOR_IMAGES_PNG_DIR/$CURSOR_NAME"
@@ -21,7 +23,7 @@ for CURSOR_FILE_PATH in "$ORIGINAL_CURSOR_IMAGES_ANI_DIR/"*.ani; do
     if test -f "$X11_CURSOR_OUTPUT_NAMES_FILE_PATH"; then
         echo "Found $X11_CURSOR_OUTPUT_NAMES_FILE_PATH -> create X11 icons"
         X11_CURSOR_OUTPUT_NAMES=($(cat "$X11_CURSOR_OUTPUT_NAMES_FILE_PATH"))
-        OUTPUT_ABSOLUTE_PATH="`realpath "$CONVERTED_CURSOR_IMAGES_PNG_DIR/x11_cursors"`"
+        OUTPUT_ABSOLUTE_PATH="`realpath "$CONVERTED_X11_CURSORS_DIR/"`"
         X11_CURSOR_CONFIG_ABSOLUTE_PATH="`realpath "$X11_CURSOR_CONFIG_FILE_PATH"`"
         mkdir -p "$CONVERTED_CURSOR_IMAGES_PNG_DIR/x11_cursors"
         for i in "${X11_CURSOR_OUTPUT_NAMES[@]}"
