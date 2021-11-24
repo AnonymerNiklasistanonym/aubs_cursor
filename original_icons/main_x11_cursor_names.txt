@@ -1,4 +1,7 @@
 arrow
 default
+hand1
+hand2
 left_ptr
 pointer
+pointing_hand
