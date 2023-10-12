@@ -9,7 +9,13 @@ cd "$SOURCE_XCURSORGEN_DIR"
 cd ..
 
 
-ICON_DIR="$HOME/.icons"
+# https://develop.kde.org/docs/features/cursor/#moving-the-files
+# Default "icons" folder location
+# > For user-specific installation:
+#   ~/.local/share/icons/
+# > For system-wide installation:
+#   /usr/share/icons/
+ICON_DIR="$HOME/.local/share/icons"
 AUBS_CURSOR_THEME_DIR="$ICON_DIR/aubs_cursor"
 AUBS_CURSOR_THEME_ICON_DIR="$AUBS_CURSOR_THEME_DIR/cursors"
 

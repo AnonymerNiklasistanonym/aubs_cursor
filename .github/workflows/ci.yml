@@ -23,7 +23,7 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           # Also check out all git submodules
           submodules: recursive
@@ -35,17 +35,26 @@ jobs:
       # X11 cursor creation
       - name: Create X11 cursor theme
         run: ./convert_ani_icons_to_png.sh
-        working-directory: xfce
+        working-directory: xcursorgen
 
-      # X11 cursor "installation"
-      - name: Install X11 cursor theme 
+      - name: Create/Install XFCE cursor
         run: ./install_cursor_xfce.sh
-        
-      # Archive X11 cursor theme
-      - name: Archive X11 cursor theme 
-        uses: actions/upload-artifact@v2
+
+      - name: Archive cursor [XFCE]
+        uses: actions/upload-artifact@v3
         with:
-          name: aubs_cursor_x11_theme
+          name: aubs_cursor_xfce
           path: /home/runner/.icons/aubs_cursor
+          # Only save the files for two weeks
+          retention-days: 14
+
+      - name: Create/Install KDE cursor
+        run: ./install_cursor_kde.sh
+
+      - name: Archive cursor [KDE]
+        uses: actions/upload-artifact@v3
+        with:
+          name: aubs_cursor_kde
+          path: /home/runner/.local/share/icons/aubs_cursor
           # Only save the files for two weeks
           retention-days: 14
